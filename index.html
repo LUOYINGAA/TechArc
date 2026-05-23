@@ -284,3 +284,17 @@
 </script>
 </body>
 </html>
+<script>
+// 模拟股价随机波动
+setInterval(() => {
+  // 找页面上所有价格数字
+  const priceElements = document.querySelectorAll('.price');
+  priceElements.forEach(el => {
+    let currentPrice = parseFloat(el.innerText.replace('$', ''));
+    // 随机±0.5美元波动
+    const change = (Math.random() - 0.5) * 1;
+    currentPrice = (currentPrice + change).toFixed(2);
+    el.innerText = `$${currentPrice}`;
+  });
+}, 3000);
+</script>
