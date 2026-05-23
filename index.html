@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>2026 美股仪表盘</title>
+<style>
+  /* ══════ 全局：暗黑 + 蓝紫渐变 ══════ */
+  :root {
+    --bg: #0a0a1a;
+    --card-bg: rgba(255,255,255,0.06);
+    --card-border: rgba(255,255,255,0.12);
+    --accent: #6c5ce7;
+    --accent2: #a29bfe;
+    --green: #00c853;
+    --red: #ff3b30;
+    --text: #e0e0e0;
+    --text-dim: #8888aa;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ══════ 玻璃态卡片 ══════ */
+  .glass {
+    background: var(--card-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+  }
+
+  /* ══════ 顶部导航 ══════ */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10,10,26,0.7);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--card-border);
+  }
+  .logo {
+    font-size: 22px; font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .nav-links a {
+    color: var(--text-dim); text-decoration: none;
+    margin-left: 24px; font-size: 14px;
+    transition: color .3s;
+  }
+  .nav-links a:hover { color: var(--accent2); }
+
+  /* ══════ 首屏：大图表区域 ══════ */
+  .hero {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 24px;
+    padding: 32px;
+  }
+  .chart-area {
+    height: 420px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .chart-header {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .ticker { font-size: 28px; font-weight: 700; }
+  .price-change {
+    font-size: 18px; font-weight: 600;
+    color: var(--green);
+  }
+  .chart-canvas {
+    flex: 1;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(108,92,231,0.15), rgba(162,155,254,0.08));
+    border: 1px solid var(--card-border);
+    position: relative;
+    overflow: hidden;
+  }
+  /* 模拟K线 */
+  .candles { display: flex; align-items: flex-end; gap: 6px; padding: 20px; height: 100%; }
+  .candle {
+    width: 18px; border-radius: 4px;
+    animation: growUp .6s ease-out both;
+  }
+  .candle.up { background: var(--green); }
+  .candle.down { background: var(--red); }
+  @keyframes growUp { from { height:0; } to { height: var(--h); } }
+
+  /* ══════ 右侧：持仓卡片 ══════ */
+  .portfolio {
+    padding: 24px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .portfolio h3 { font-size: 18px; margin-bottom: 8px; }
+  .holding {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+    transition: transform .2s, background .2s;
+    cursor: pointer;
+  }
+  .holding:hover {
+    transform: translateY(-2px);
+    background: rgba(108,92,231,0.12);
+  }
+  .holding .name { font-weight: 600; }
+  .holding .val { font-size: 13px; color: var(--text-dim); }
+  .holding .pct { font-weight: 700; font-size: 15px; }
+  .pct.up { color: var(--green); }
+  .pct.down { color: var(--red); }
+
+  /* ══════ 中部：热力图筛选区 ══════ */
+  .heatmap-section {
+    padding: 0 32px 32px;
+  }
+  .heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 8px;
+  }
+  .heat-cell {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600;
+    transition: transform .2s;
+    cursor: pointer;
+  }
+  .heat-cell:hover { transform: scale(1.08); }
+
+  /* ══════ 底部搜索栏 ══════ */
+  .search-bar {
+    margin: 0 32px 40px;
+    position: relative;
+  }
+  .search-bar input {
+    width: 100%;
+    padding: 16px 24px 16px 48px;
+    border-radius: 14px;
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
+    color: var(--text);
+    font-size: 16px;
+    outline: none;
+    transition: border-color .3s;
+  }
+  .search-bar input:focus { border-color: var(--accent); }
+  .search-bar .icon {
+    position: absolute; left: 16px; top: 50%;
+    transform: translateY(-50%); color: var(--text-dim);
+  }
+
+  /* ══════ 微动效 ══════ */
+  @keyframes fadeInUp {
+    from { opacity:0; transform:translateY(20px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+  .fade-in { animation: fadeInUp .5s ease-out both; }
+
+  /* ══════ 响应式 ══════ */
+  @media (max-width: 768px) {
+    .hero { grid-template-columns: 1fr; }
+    nav { padding: 12px 16px; }
+    .hero, .heatmap-section, .search-bar { padding-left: 16px; padding-right: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<nav>
+  <div class="logo">📈 StockVision 2026</div>
+  <div class="nav-links">
+    <a href="#">行情</a>
+    <a href="#">持仓</a>
+    <a href="#">筛选</a>
+    <a href="#">AI助手 🤖</a>
+  </div>
+</nav>
+
+<!-- 首屏：图表 + 持仓 -->
+<section class="hero fade-in">
+  <div class="chart-area glass" style="padding:24px;">
+    <div class="chart-header">
+      <div>
+        <div class="ticker">AAPL · Apple Inc.</div>
+        <div style="color:var(--text-dim);font-size:14px;">NASDAQ · 实时</div>
+      </div>
+      <div class="price-change">▲ +2.34%  $198.45</div>
+    </div>
+    <div class="chart-canvas">
+      <div class="candles" id="candles"></div>
+    </div>
+  </div>
+
+  <div class="portfolio glass">
+    <h3>💼 我的持仓</h3>
+    <div class="holding">
+      <div>
+        <div class="name">TSLA</div>
+        <div class="val">12 股 · $28,800</div>
+      </div>
+      <div class="pct up">+5.12%</div>
+    </div>
+    <div class="holding">
+      <div>
+        <div class="name">NVDA</div>
+        <div class="val">8 股 · $9,600</div>
+      </div>
+      <div class="pct up">+3.87%</div>
+    </div>
+    <div class="holding">
+      <div>
+        <div class="name">AMD</div>
+        <div class="val">20 股 · $3,200</div>
+      </div>
+      <div class="pct down">-1.24%</div>
+    </div>
+    <div class="holding">
+      <div>
+        <div class="name">MSFT</div>
+        <div class="val">5 股 · $2,100</div>
+      </div>
+      <div class="pct up">+0.95%</div>
+    </div>
+  </div>
+</section>
+
+<!-- 热力图筛选区 -->
+<section class="heatmap-section fade-in">
+  <h3 style="margin-bottom:16px;font-size:18px;">🔥 板块热力图</h3>
+  <div class="heatmap-grid" id="heatmap"></div>
+</section>
+
+<!-- 底部搜索 -->
+<div class="search-bar fade-in">
+  <span class="icon">🔍</span>
+  <input type="text" placeholder="搜索股票、ETF、或用自然语言提问… (AI 辅助)" />
+</div>
+
+<script>
+  /* ── 生成模拟K线 ── */
+  const candlesEl = document.getElementById('candles');
+  const colors = ['up','down','up','up','down','up','up','down','up','up','down','up'];
+  colors.forEach((c, i) => {
+    const el = document.createElement('div');
+    el.className = 'candle ' + c;
+    el.style.setProperty('--h', (40 + Math.random()*140)+'px');
+    el.style.animationDelay = (i*0.05)+'s';
+    candlesEl.appendChild(el);
+  });
+
+  /* ── 生成热力图 ── */
+  const sectors = ['科技','医疗','金融','能源','消费','工业','通信','材料','地产','公用'];
+  const heatEl = document.getElementById('heatmap');
+  sectors.forEach(s => {
+    const pct = (Math.random()*10-5).toFixed(1);
+    const intensity = Math.min(1, Math.max(0, (parseFloat(pct)+5)/10));
+    const r = Math.round(255 * intensity);
+    const g = Math.round(80 * (1-intensity));
+    const b = Math.round(80 * (1-intensity));
+    const cell = document.createElement('div');
+    cell.className = 'heat-cell glass';
+    cell.style.background = `rgba(${r},${g},${b},0.35)`;
+    cell.style.color = parseFloat(pct) >= 0 ? '#00c853' : '#ff3b30';
+    cell.textContent = s + ' ' + pct + '%';
+    heatEl.appendChild(cell);
+  });
+</script>
+</body>
+</html>
